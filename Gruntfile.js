@@ -19,7 +19,8 @@ grunt.initConfig({
             dist: {
                 nonull: true,
                 src: [
-                    'src/<%= pkg.name %>.js'
+                    'src/<%= pkg.name %>.js',
+                    'src/data/OpenLayers3.js'
                 ],
                 dest: 'dist/<%= pkg.name %>.js'
             },
