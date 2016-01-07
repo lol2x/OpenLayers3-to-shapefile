@@ -104,6 +104,7 @@ var Shapefile = (function() {
     // this is where the shapefile goodness happens
     var _createShapeShxFile = function(shapetype, graphics) {
       var i, pointIdx, partNum, graphic, byteLengthOfRecordInclHeader;
+      var shapeContentBlobObject, shxContentBlobObject;
       var shpHeaderBuf = new ArrayBuffer(100);
       var shxHeaderBuf = new ArrayBuffer(100);
       for (i = 0; i < 100; i++) {
@@ -175,6 +176,8 @@ var Shapefile = (function() {
             //shapeContentBlobObject.append(recordDataView.getBuffer());
       //      var shxContentBlobObject = new Blob(shxHeaderBuf,shxRecordBuffer);
             byteFileLength += byteLengthOfRecordInclHeader;
+            shapeContentBlobObject = new Blob(recordDataView);
+            shxContentBlobObject = new Blob(shxRecordView);
           }
           break;
         case 'POLYLINE':
@@ -274,6 +277,8 @@ var Shapefile = (function() {
             var shxDataView = new DataView(shxBuffer);
             shxDataView.setInt32(0, byteFileLength / 2);
             shxDataView.setInt32(4, byteLengthOfRecordContent / 2);
+            shapeContentBlobObject = new Blob([shpRecordInfoView, pointsArrayView]);
+            shxContentBlobObject = new Blob(shxDataView);
             if (featureMaxX > extentMaxX)
               extentMaxX = featureMaxX;
             if (featureMinX < extentMinX)
@@ -288,7 +293,6 @@ var Shapefile = (function() {
           break;
         default:
           return ({
-
             successful: false,
             message: 'unknown shape type specified'
           });
@@ -309,16 +313,12 @@ var Shapefile = (function() {
       shxHeaderView.setInt32(24, (50 + numRecords * 4));
 
       // all done. make and return the final blob objects
-      var shapeFileBlobObject = new Blob();
-      shapeFileBlobObject.append(shpHeaderView.getBuffer());
-      shapeFileBlobObject.append(shapeContentBlobObject.getBlob()); //// DUŻO ZMIAN TODO asdasd
-      var shxFileBlobObject = new BlobBuilder();
-      shxFileBlobObject.append(shxHeaderView.getBuffer());
-      shxFileBlobObject.append(shxContentBlobObject.getBlob());
+      var shapeFileBlobObject = new Blob([shpHeaderView, shapeContentBlobObject]);
+      var shxFileBlobObject = new Blob([shxHeaderView, shxContentBlobObject]);
       return {
         successful: true,
-        shape: shapeFileBlobObject.getBlob(),
-        shx: shxFileBlobObject.getBlob()
+        shape: shapeFileBlobObject,
+        shx: shxFileBlobObject
       };
     }
     // DBF created by two separate functions for header and content. This function combines them
