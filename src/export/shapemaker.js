@@ -104,7 +104,8 @@ var Shapefile = (function() {
     // this is where the shapefile goodness happens
     var _createShapeShxFile = function(shapetype, graphics) {
       var i, pointIdx, partNum, graphic, byteLengthOfRecordInclHeader;
-      var shapeContentBlobObject, shxContentBlobObject;
+      var shapeContentBlobObject = new Blob([]);
+      var shxContentBlobObject = new Blob([]);
       var shpHeaderBuf = new ArrayBuffer(100);
       var shxHeaderBuf = new ArrayBuffer(100);
       for (i = 0; i < 100; i++) {
@@ -176,8 +177,8 @@ var Shapefile = (function() {
             //shapeContentBlobObject.append(recordDataView.getBuffer());
       //      var shxContentBlobObject = new Blob(shxHeaderBuf,shxRecordBuffer);
             byteFileLength += byteLengthOfRecordInclHeader;
-            shapeContentBlobObject = new Blob([recordDataView]);
-            shxContentBlobObject = new Blob([shxRecordView]);
+            shapeContentBlobObject = new Blob([shapeContentBlobObject, recordDataView]);
+            shxContentBlobObject = new Blob([shxContentBlobObject, shxRecordView]);
           }
           break;
         case 'POLYLINE':
@@ -277,8 +278,8 @@ var Shapefile = (function() {
             var shxDataView = new DataView(shxBuffer);
             shxDataView.setInt32(0, byteFileLength / 2);
             shxDataView.setInt32(4, byteLengthOfRecordContent / 2);
-            shapeContentBlobObject = new Blob([shpRecordInfoView, pointsArrayView]);
-            shxContentBlobObject = new Blob([shxDataView]);
+            shapeContentBlobObject = new Blob([shapeContentBlobObject, shpRecordInfoView, pointsArrayView]);
+            shxContentBlobObject = new Blob([shxContentBlobObject, shxDataView]);
             if (featureMaxX > extentMaxX)
               extentMaxX = featureMaxX;
             if (featureMinX < extentMinX)
