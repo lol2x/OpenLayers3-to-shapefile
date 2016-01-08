@@ -53,7 +53,7 @@ var Shapefile = (function() {
           this._pointgraphics.push(OpenLayers3Geometry);
         } else if (feature.getGeometry().getType() === 'LineString') {
           OpenLayers3Geometry.geometry.type = 'POLYLINE';
-          OpenLayers3Geometry.geometry.paths = feature.getGeometry().getCoordinates();
+          OpenLayers3Geometry.geometry.paths = [feature.getGeometry().getCoordinates()];
           this._polylinegraphics.push(OpenLayers3Geometry);
         } else if (feature.getGeometry().getType() === 'Polygon') {
           OpenLayers3Geometry.geometry.type = 'POLYGON';
