@@ -176,8 +176,8 @@ var Shapefile = (function() {
             //shapeContentBlobObject.append(recordDataView.getBuffer());
       //      var shxContentBlobObject = new Blob(shxHeaderBuf,shxRecordBuffer);
             byteFileLength += byteLengthOfRecordInclHeader;
-            shapeContentBlobObject = new Blob(recordDataView);
-            shxContentBlobObject = new Blob(shxRecordView);
+            shapeContentBlobObject = new Blob([recordDataView]);
+            shxContentBlobObject = new Blob([shxRecordView]);
           }
           break;
         case 'POLYLINE':
@@ -278,7 +278,7 @@ var Shapefile = (function() {
             shxDataView.setInt32(0, byteFileLength / 2);
             shxDataView.setInt32(4, byteLengthOfRecordContent / 2);
             shapeContentBlobObject = new Blob([shpRecordInfoView, pointsArrayView]);
-            shxContentBlobObject = new Blob(shxDataView);
+            shxContentBlobObject = new Blob([shxDataView]);
             if (featureMaxX > extentMaxX)
               extentMaxX = featureMaxX;
             if (featureMinX < extentMinX)
@@ -320,10 +320,10 @@ var Shapefile = (function() {
         shape: shapeFileBlobObject,
         shx: shxFileBlobObject
       };
-    }
+    };
     // DBF created by two separate functions for header and content. This function combines them
     var _createDbf = function(attributeMap, graphics) {
-      if (attributeMap.length == 0) {
+      if (attributeMap.length === 0) {
         attributeMap.push({
           name: 'ID_AUTO',
           type: 'N',
@@ -334,11 +334,8 @@ var Shapefile = (function() {
       var dbfRecordLength = dbfInfo['recordLength'];
       var dbfHeaderBlob = dbfInfo['dbfHeader'];
       var dbfData = _createDbfRecords(attributeMap, graphics, dbfRecordLength);
-      var dbfBlob = new BlobBuilder();
-      dbfBlob.append(dbfHeaderBlob.getBlob());
-      dbfBlob.append(dbfData.getBlob());
-      return dbfBlob.getBlob();
-    }
+      return new Blob([dbfHeaderBlob, dbfData]);
+    };
     var _createDbfHeader = function(attributeMap, numRecords) {
       // DBF File format references: see
       // (XBase) http://www.clicketyclick.dk/databases/xbase/format/dbf.html#DBF_STRUCT
@@ -358,8 +355,8 @@ var Shapefile = (function() {
       var numFields = attributeMap.length; // GET NUMBER OF FIELDS FROM PARAMETER
       var fieldDescLength = 32 * numFields + 1;
       // use convenience method to create compatible buffer format
-      var dbfFieldDescBuf = jDataView_write.createEmptyBuffer(fieldDescLength);
-      var dbfFieldDescView = new jDataView_write(dbfFieldDescBuf);
+      var dbfFieldDescBuf = new ArrayBuffer(fieldDescLength);
+      var dbfFieldDescView = new DataView(dbfFieldDescBuf);
       var namesUsed = [];
       var numBytesPerRecord = 1; // total is the length of all fields plus 1 for deletion flag
       for (var i = 0; i < numFields; i++) {
@@ -369,7 +366,7 @@ var Shapefile = (function() {
         // if so. not doing the check yet, better make sure we don't try duplicate names!
         // NB older browsers don't have indexOf but given the other stuff we're doing with binary
         // i think that's the least of their worries
-        if (namesUsed.indexOf(name) == -1) {
+        if (namesUsed.indexOf(name) === -1) {
           namesUsed.push(name);
         }
         // write the name into bytes 0-9 of the field description
@@ -383,19 +380,19 @@ var Shapefile = (function() {
          L = Logical, boolean. 1 byte, ascii. Values "Y", "N", "T", "F" or "?" are valid
          D = Date, format YYYYMMDD, numbers
          */
-        var datatype = attributeMap[i].type || 'C'
+        var datatype = attributeMap[i].type || 'C';
         var fieldLength;
         if (datatype == 'L') {
           fieldLength = 1; // not convinced this datatype is right, doesn't show as boolean in GIS
         }
-        else if (datatype == 'D') {
+        else if (datatype === 'D') {
           fieldLength = 8;
         }
-        else if (datatype == 'N') {
+        else if (datatype === 'N') {
           // maximum length is 18
           fieldLength = attributeMap[i].length && attributeMap[i].length < 19 ? attributeMap[i].length : 18;
         }
-        else if (datatype == 'C') {
+        else if (datatype === 'C') {
           fieldLength = attributeMap[i].length && attributeMap[i].length < 254 ? attributeMap[i].length : 254;
         }
         //else {
@@ -417,11 +414,11 @@ var Shapefile = (function() {
         numBytesPerRecord += parseInt(fieldLength);
       }
       // last byte of the array is set to 0Dh (13, newline character) to mark end of overall header
-      dbfFieldDescView.setInt8(fieldDescLength - 1, 13)
+      dbfFieldDescView.setInt8(fieldDescLength - 1, 13);
       // field map section is complete, now do the main header
-      var dbfHeaderBuf = jDataView_write.createEmptyBuffer(32);
-      var dbfHeaderView = new jDataView_write(dbfHeaderBuf);
-      dbfHeaderView.setUint8(0, 3) // File Signature: DBF - UNSIGNED
+      var dbfHeaderBuf = new ArrayBuffer(32);
+      var dbfHeaderView = new DataView(dbfHeaderBuf);
+      dbfHeaderView.setUint8(0, 3); // File Signature: DBF - UNSIGNED
       var rightnow = new Date();
       dbfHeaderView.setUint8(1, rightnow.getFullYear() - 1900); // UNSIGNED
       dbfHeaderView.setUint8(2, rightnow.getMonth()); // UNSIGNED
@@ -435,14 +432,12 @@ var Shapefile = (function() {
       //dbfHeaderView.setUint8(29,03) // language driver, 03 = windows ansi
       // except for 29, bytes 12 - 31 are reserved or for things we don't need in this implementation
       // header section is complete, now build the overall header as a blob
-      var dbfHeaderBlob = new BlobBuilder();
-      dbfHeaderBlob.append(dbfHeaderView.getBuffer());
-      dbfHeaderBlob.append(dbfFieldDescView.getBuffer());
+      var dbfHeaderBlob = new Blob([dbfHeaderView, dbfFieldDescView]);
       return {
         recordLength: numBytesPerRecord,
         dbfHeader: dbfHeaderBlob
       }
-    }
+    };
     var _createDbfRecords = function(attributeMap, graphics, dbfRecordLength) {
       /* PARAMETERS:
        * graphics is an array of objects of structure
@@ -476,10 +471,11 @@ var Shapefile = (function() {
        * There are almost certainly more ways to break this than there are ways to make it work!
        */
       // overall datalength is number of records * (length of record including 1 for deletion flag) +1 for EOF
+      var numAsString, writeByte;
       var dataLength = (dbfRecordLength) * graphics.length + 1;
       //var dbfDataBuf = new ArrayBuffer(dataLength);
-      var dbfDataBuf = jDataView_write.createEmptyBuffer(dataLength);
-      var dbfDataView = new jDataView_write(dbfDataBuf);
+      var dbfDataBuf = new ArrayBuffer(dataLength);
+      var dbfDataView = new DataView(dbfDataBuf);
       var currentOffset = 0;
       for (var rownum = 0; rownum < graphics.length; rownum++) {
         var rowData = graphics[rownum].attributes || {};
@@ -510,12 +506,12 @@ var Shapefile = (function() {
           }
           else if (dataType == 'D') {
             fieldLength = 8;
-            var numAsString = attValue.toString();
+            numAsString = attValue.toString();
             if (numAsString.length != fieldLength) {
               // if the length isn't what it should be then ignore and write a blank string
               numAsString = ''.lpad(' ', 8);
             }
-            for (var writeByte = 0; writeByte < fieldLength; writeByte++) {
+            for (writeByte = 0; writeByte < fieldLength; writeByte++) {
               dbfDataView.setUint8(currentOffset, numAsString.charCodeAt(writeByte));
               currentOffset += 1;
             }
@@ -523,7 +519,7 @@ var Shapefile = (function() {
           else if (dataType == 'N') {
             // maximum length is 18. Numbers are stored as ascii text so convert to a string.
             // fieldLength = attribinfo.length && attribinfo.length<19 ? attribinfo.length : 18;
-            var numAsString = attValue.toString();
+            numAsString = attValue.toString();
             if (fieldLength == 0) {
               continue;
             }
@@ -535,7 +531,7 @@ var Shapefile = (function() {
             else if (numAsString.length > fieldLength) {
               numAsString = numAsString.substr(0, 18);
             }
-            for (var writeByte = 0; writeByte < fieldLength; writeByte++) {
+            for (writeByte = 0; writeByte < fieldLength; writeByte++) {
               dbfDataView.setUint8(currentOffset, numAsString.charCodeAt(writeByte));
               currentOffset += 1;
             }
@@ -552,7 +548,7 @@ var Shapefile = (function() {
               attValue = attValue.rpad(' ', fieldLength);
             }
             // doesn't matter if it's too long as we will only write fieldLength bytes
-            for (var writeByte = 0; writeByte < fieldLength; writeByte++) {
+            for (writeByte = 0; writeByte < fieldLength; writeByte++) {
               dbfDataView.setUint8(currentOffset, attValue.charCodeAt(writeByte));
               currentOffset += 1;
             }
@@ -563,11 +559,8 @@ var Shapefile = (function() {
       // all rows written, write EOF
       dbfDataView.setUint8(dataLength - 1, 26);
       //var dbfDataBlobObject = new WebKitBlobBuilder();
-      var dbfDataBlobObject = new BlobBuilder();
-      //dbfDataBlobObject.append(dbfDataBuf);
-      dbfDataBlobObject.append(dbfDataView.getBuffer());
-      return dbfDataBlobObject;
-    }
+      return new Blob([dbfDataView]);
+    };
     var _createAttributeMap = function(graphicsArray) {
       // creates a summary of the attributes in the input graphics
       // will be a union of all attributes present so it is sensible but not required that
@@ -609,13 +602,13 @@ var Shapefile = (function() {
                   case 'boolean':
                     allAttributes[attribute] = {
                       type: 'L'
-                    }
+                    };
                     break;
                   case 'string':
                     allAttributes[attribute] = {
                       type: 'C',
                       length: attvalue.length
-                    }
+                    };
                     break;
                 }
               }
@@ -624,7 +617,7 @@ var Shapefile = (function() {
         }
       }
       var attributeMap = [];
-      for (attributeName in allAttributes) {
+      for (var attributeName in allAttributes) {
         if (allAttributes.hasOwnProperty(attributeName)) {
           var thisAttribute = {
             name: attributeName,
@@ -641,25 +634,19 @@ var Shapefile = (function() {
         }
       }
       return attributeMap;
-    }
+    };
 // DEFINE THE OBJECT THAT WILL REPRESENT THE PROTOTYPE
     // all functions defined, now return as the prototype an object giving access to the ones we want
     // to be public
     return {
       constructor: ShapeMaker,
-      addESRIGraphics: function() {
-        return addESRIGraphics.call(this, arguments[0])
-      },
-      addGoogleGraphics: function() {
-        return addGoogleGraphics.call(this, arguments[0]);
-      },
-      addOLGraphics: function() {
-        return addOLGraphics.call(this, arguments[0]);
+      getOpenLayers3Geometry: function() {
+        return getOpenLayers3Geometry.call(this, arguments[0]);
       },
       getShapefile: function() {
         return getShapefile.call(this, arguments[0]);
       }
-    }
+    };
     // execute the prototype definition immediately
   })();
 // return the ShapeMaker object
