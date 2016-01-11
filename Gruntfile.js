@@ -20,7 +20,7 @@ grunt.initConfig({
                 nonull: true,
                 src: [
                     'src/<%= pkg.name %>.js',
-                    'src/data/OpenLayers3.js'
+                    'src/export/shapemaker.js'
                 ],
                 dest: 'dist/<%= pkg.name %>.js'
             },
