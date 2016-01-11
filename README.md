@@ -1,3 +1,3 @@
 # OpenLayers2shp
 
-Project under development
+It's working but the code is total mess - to be repaired :)
