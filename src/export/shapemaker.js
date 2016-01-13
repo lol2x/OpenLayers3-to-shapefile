@@ -1,25 +1,42 @@
+/**
+ * @class Shapefile
+ * @classdesc Main class
+ */
 var Shapefile = (function() {
 
-  //pad strings on the left
-  if (!''.lpad) {
-    String.prototype.lpad = function(padString, length) {
-      var str = this;
-      while (str.length < length)
-        str = padString + str;
-      return str;
-    };
-  }
+  /**
+   * Pad the left side of a string with a given character
+   * @param {string} padString - Filling character
+   * @param {number} length - Final lenght of String
+   * @function lpad
+   * @memberof Shapefile
+   * @return {string}
+   */
+  String.prototype.lpad = function(padString, length) {
+    var _this = this;
+    while (_this.length < length)
+      _this = padString + _this;
+    return _this;
+  };
 
-  //pad strings on the right
-  if (!''.rpad) {
-    String.prototype.rpad = function(padString, length) {
-      var str = this;
-      while (str.length < length)
-        str = str + padString;
-      return str;
-    };
-  }
+  /**
+   * Pad the right side of a string with a given character
+   * @param {string} padString - Filling character
+   * @param {number} length - Final lenght of String
+   * @function rpad
+   * @memberof Shapefile
+   * @return {string}
+   */
+  String.prototype.rpad = function(padString, length) {
+    var _this = this;
+    while (_this.length < length)
+      _this = _this + padString;
+    return _this;
+  };
 
+  /**
+   * Pad the right side of a string with a given character
+   */
   var ShapeMaker = function() {
     this._pointgraphics = [];
     this._polylinegraphics = [];
@@ -37,7 +54,7 @@ var Shapefile = (function() {
     /**
      * Push OpanLayers3 data to graphics prepared for shapefile format
      * (Point, LineString and Polygon)
-     * @param {ol.source.Vector} openlayers3data OpenLayers data you want to push
+     * @param {ol.source.Vector} openlayers3data - OpenLayers 3 data to prepare
      */
     function getOpenLayers3Geometry(openlayers3data) {
       var features = openlayers3data.getFeatures();
@@ -107,7 +124,11 @@ var Shapefile = (function() {
     // DECLARE FUCNTIONS THAT WILL BE PRIVATE (NOT EXPOSED THROUGH PROTOTYPE)
     // this is where the shapefile goodness happens
     var _createShapeShxFile = function(shapetype, graphics) {
-      var i, pointIdx, partNum, graphic, byteLengthOfRecordInclHeader;
+      var i;
+      var pointIdx;
+      var partNum;
+      var graphic;
+      var byteLengthOfRecordInclHeader;
       var shpContentBlobObject = new Blob([]);
       var shxContentBlobObject = new Blob([]);
       var shpHeaderBuf = new ArrayBuffer(100);
@@ -519,7 +540,8 @@ var Shapefile = (function() {
        */
 
       // overall datalength is number of records * (length of record including 1 for deletion flag) +1 for EOF
-      var numAsString, writeByte;
+      var numAsString;
+      var writeByte;
       var dataLength = (dbfRecordLength) * graphics.length + 1;
 
       //var dbfDataBuf = new ArrayBuffer(dataLength);
