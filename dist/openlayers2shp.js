@@ -117,6 +117,23 @@ var Shapefile = (function() {
           OpenLayers3Geometry.geometry.type = 'POLYGON';
           OpenLayers3Geometry.geometry.rings = feature.getGeometry().getCoordinates(false);
           this._polygongraphics.push(OpenLayers3Geometry);
+        } else if (feature.getGeometry().getType() === 'MultiPoint') {
+          OpenLayers3Geometry.geometry.type = 'POINT';
+          var point = feature.getGeometry().getCoordinates;
+          for (var j = 0; j < point.length; j++) {
+            OpenLayers3Geometry.geometry.x = point[j][0];
+            OpenLayers3Geometry.geometry.y = point[j][1];
+          }
+
+          this._pointgraphics.push(OpenLayers3Geometry);
+        } else if (feature.getGeometry().getType() === 'MultiPolygon') {
+          OpenLayers3Geometry.geometry.type = 'POLYGON';
+          var rings = feature.getGeometry().getCoordinates(false);
+          for (var j = 0; j < rings.length; j++) {
+            OpenLayers3Geometry.geometry.rings = rings[j];
+          }
+
+          this._polygongraphics.push(OpenLayers3Geometry);
         }
       }
     }
