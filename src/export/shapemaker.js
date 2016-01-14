@@ -1,6 +1,25 @@
+/*
+Based mostly on great work of Harry Gibson
+GNU / GPL v3
+ */
 /**
  * @class Shapefile
  * @classdesc Main class
+ * @example
+ * var shapefile = new Shapefile();
+ * shapefile.getOpenLayers3Geometry(ol.source.Vector)
+ * var pointfile = shapefile.getShapefile('POINT');  // output shapefile will use point graphics only
+ * var linefile = shapefile.getShapefile('POLYLINE'); // output shapefile will use the polyline graphics only
+ * var polygonfile = shapefile.getShapefile('POLYGON'); //output shapefile will use the polygons graphics only
+ * //Return structure:
+ *  pointfile = {
+ *  	successful : true | false,
+ *  	shapefile: {
+ *  		shp:	Blob,
+ *  		shx:	Blob,
+ *  		dbf:	Blob
+ *  	}
+ *  }
  */
 var Shapefile = (function() {
 
@@ -95,14 +114,12 @@ var Shapefile = (function() {
     /**
      * Main function to generate shapefile, after adding graphics
      * @memberof Shapefile
-     * @param shapetype
-     * @returns {{successful: boolean, message: string}|
+     * @param {string} shapetype - Type of shapefile to generate
+     * POINT or POLYLINE or POLYGON
+     * @returns {{successful: boolean, message: string} |
      * {successful: boolean, shapefile: {shp: resultObject, shx: resultObject, dbf: resultObject}}
      */
     var getShapefile = function(shapetype) {
-      // Main function to generate shapefile, after adding graphics
-      // Returns an object with three
-      // members named shp,shx, and dbf, values are the associated Blobs
       if (typeof (shapetype) === 'undefined' &&
           !(shapetype === 'POINT' || shapetype === 'POLYLINE' || shapetype === 'POLYGON')) {
         return {
@@ -138,8 +155,6 @@ var Shapefile = (function() {
       };
     };
 
-    // DECLARE FUCNTIONS THAT WILL BE PRIVATE (NOT EXPOSED THROUGH PROTOTYPE)
-    // this is where the shapefile goodness happens
     var _createShapeShxFile = function(shapetype, graphics) {
       var i;
       var pointIdx;
@@ -158,76 +173,101 @@ var Shapefile = (function() {
       var shpHeaderView = new DataView(shpHeaderBuf);
       var shxHeaderView = new DataView(shxHeaderBuf);
 
-      // start writing the headers
-      // Big-endian 32 bit int of 9994 at byte 0 in both files
+      /*
+       Write shapefile neccessary headers
+       Big-endian 32 bit int of 9994 at byte 0 in both files
+       */
       shpHeaderView.setInt32(0, 9994);
       shxHeaderView.setInt32(0, 9994);
 
-      // Little endian 32 bit int of 1000 at byte 28 in both files
+      /*
+       Little endian 32 bit int of 1000 at byte 28 in both files
+       */
       shpHeaderView.setInt32(28, 1000, true);
       shxHeaderView.setInt32(28, 1000, true);
 
-      // Little endian 32 bit int at byte 32 in both files gives shapetype
+      /*
+       Little endian 32 bit int at byte 32 in both files, value taken from ShapeType
+       */
       shpHeaderView.setInt32(32, ShapeTypes[shapetype], true);
       shxHeaderView.setInt32(32, ShapeTypes[shapetype], true);
 
-      // That's the fixed info, rest of header depends on contents. Start building contents now.
-      // will get extent by naive method of increasing or decreasing the min / max for each feature
-      // outside those currently set
+      /*
+       That's the fixed info, rest of header depends on contents. Start building contents now.
+       will get extent by naive method of increasing or decreasing the min / max for each feature
+       outside those currently set
+       */
       var extentMinX = Number.MAX_VALUE;
       var extentMinY = Number.MAX_VALUE;
       var extentMaxX = -Number.MAX_VALUE;
       var extentMaxY = -Number.MAX_VALUE;
       var numRecords = graphics.length;
 
-      // track overall length of files in bytes
-      var byteFileLength = 100; // value is fixed 100 bytes from the header, plus the contents
-      var byteLengthOfRecordHeader = 8; // 2 integers, same for all shape types
+      /*
+       track overall length of files in bytes
+       value is fixed 100 bytes from the header, plus the contents
+       + 2 integers, same for all shape types
+       */
+      var byteFileLength = 100;
+      var byteLengthOfRecordHeader = 8;
       switch (shapetype) {
         case 'POINT':
-
-          // length of record is fixed at 20 for points, being 1 int and 2 doubles in a point record
+          /*
+           length of record is fixed at 20 for points, being 1 int and 2 doubles in a point record
+          */
           var byteLengthOfRecord = 20;
           byteLengthOfRecordInclHeader = byteLengthOfRecord + byteLengthOfRecordHeader;
-          for (i = 1; i < numRecords + 1; i++) { // record numbers begin at 1 not 0
+          for (i = 1; i < numRecords + 1; i++) {
             graphic = graphics[i - 1];
             var x = graphic.geometry.x;
             var y = graphic.geometry.y;
-            if (x < extentMinX)
+            if (x < extentMinX) {
               extentMinX = x;
-            if (x > extentMaxX)
-              extentMaxX = x;
-            if (y < extentMinY)
-              extentMinY = y;
-            if (y > extentMaxY)
-              extentMaxY = y;
+            }
 
-            // we'll write the shapefile record header and content into a single arraybuffer
+            if (x > extentMaxX) {
+              extentMaxX = x;
+            }
+
+            if (y < extentMinY) {
+              extentMinY = y;
+            }
+
+            if (y > extentMaxY) {
+              extentMaxY = y;
+            }
+            /*
+            Writing shapefile record header and content into a single arraybuffer
+             */
             var recordBuffer = new ArrayBuffer(byteLengthOfRecordInclHeader);
             var recordDataView = new DataView(recordBuffer);
-            recordDataView.setInt32(0, i); // big-endian value at byte 0 of header is record number
-            // Byte 4 is length of record content only, in 16 bit words (divide by 2)
-            recordDataView.setInt32(4, byteLengthOfRecord / 2); // always 20 / 2 = 10 for points
-            //now the record content
-            recordDataView.setInt32(8, ShapeTypes[shapetype], true); // 1=Point. LITTLE endian!
-            recordDataView.setFloat64(12, x, true); //little-endian
-            recordDataView.setFloat64(20, y, true); //little-endian
-            // now do the shx record. NB no record header in shx, just fixed 8 byte records.
+            /*
+             Big-endian value at byte 0 of header is record number
+             */
+            recordDataView.setInt32(0, i);
+            /*
+             Byte 4 is length of record content only, in 16 bit words (divide by 2)
+             always 20 / 2 = 10 for points
+             */
+            recordDataView.setInt32(4, byteLengthOfRecord / 2);
+            /*
+            Content writing start here
+             */
+            recordDataView.setInt32(8, ShapeTypes[shapetype], true);
+            recordDataView.setFloat64(12, x, true);
+            recordDataView.setFloat64(20, y, true);
             var shxRecordBuffer = new ArrayBuffer(8);
             var shxRecordView = new DataView(shxRecordBuffer);
-
-            // byte 0 of shx record gives offset in the shapefile of record start
-            // byte 4 of shx record gives length of the record in the shapefile
+            /*
+             byte 0 of shx record gives offset in the shapefile of record start
+             byte 4 of shx record gives length of the record in the shapefile
+             */
             shxRecordView.setInt32(0, byteFileLength / 2);
             shxRecordView.setInt32(4, (byteLengthOfRecord / 2));
-
-            // append the data to the content blobs, use the getBuffer convenience method rather
-            // than the buffer object itself as if it's a mock (normal array) buffer
-            // it needs converting to a string first
-            //      var shpContentBlobObject = new Blob(shpHeaderBuf, recordBuffer);
-            //shpContentBlobObject.append(recordDataView.getBuffer());
-            //      var shxContentBlobObject = new Blob(shxHeaderBuf,shxRecordBuffer);
             byteFileLength += byteLengthOfRecordInclHeader;
+            /*
+            Create Blobs from DataViews
+             */
             shpContentBlobObject = new Blob([shpContentBlobObject, recordDataView]);
             shxContentBlobObject = new Blob([shxContentBlobObject, shxRecordView]);
           }
@@ -235,10 +275,11 @@ var Shapefile = (function() {
           break;
         case 'POLYLINE':
         case 'POLYGON':
-
-          // file structure is identical for lines and polygons,
-          // we just use a different shapetype and refer to
-          // a different property of the input graphic
+          /*
+           file structure is identical for lines and polygons,
+           we just use a different shapetype and refer to
+           a different property of the input graphic
+           */
           for (i = 1; i < numRecords + 1; i++) {
             graphic = graphics[i - 1];
             var featureMinX = Number.MAX_VALUE;
@@ -264,30 +305,37 @@ var Shapefile = (function() {
 
               var numPointsInPart = thisPart.length;
 
-              // record the index of where this part starts in the overall record's point array
+              /*
+               record the index of where this part starts in the overall record's point array
+               */
               partsIndex.push(pointsArray.length);
 
-              // add all the part's points to a single array for the record;
+              /*
+               add all the part's points to a single array for the record;
+               */
               for (pointIdx = 0; pointIdx < numPointsInPart; pointIdx++) {
                 pointsArray.push(thisPart[pointIdx]);
               }
             }
 
             var numPointsOverall = pointsArray.length;
-
-            // now we know all we need in order to create the binary stuff.
-            // pointsarray contains the points in JS array
-            // format and partsIndex is a JS array of the start indices in pointsarray
-            // NB: each "point" or rather vertex in shapefile is just 2 doubles, 16 bytes
-            // (not a full "point" record! not clear in shapefile docs!)
+            /*
+            Creating binary files:
+             pointsarray contains the points in JS array
+             format and partsIndex is a JS array of the start indices in pointsarray
+             */
             var pointsArrayBuf = new ArrayBuffer(16 * numPointsOverall);
             var pointsArrayView = new DataView(pointsArrayBuf);
             for (pointIdx = 0; pointIdx < numPointsOverall; pointIdx += 1) {
-              // each item in pointsArray should be an array of two numbers, being x and y coords
+              /*
+               each item in pointsArray should be an array of two numbers, being x and y coords
+               */
               var thisPoint = pointsArray[pointIdx];
               pointsArrayView.setFloat64(pointIdx * 16, thisPoint[0], true); //little-endian
               pointsArrayView.setFloat64(pointIdx * 16 + 8, thisPoint[1], true); //little-endian
-              // check and update feature box / extent if necessary
+              /*
+               check and update feature box / extent if necessary
+               */
               if (thisPoint[0] < featureMinX) {
                 featureMinX = thisPoint[0];
               }
@@ -304,28 +352,39 @@ var Shapefile = (function() {
                 featureMaxY = thisPoint[1];
               }
             }
-
-            // length of record contents excluding the vertices themselves is 44 + 4*numparts
-            // we add another 8 for the record header which we
-            // haven't done separately, hence offsets
-            // below are 8 higher than in shapefile specification (table 6)
+            /*
+             length of record contents excluding the vertices themselves is 44 + 4*numparts
+             we add another 8 for the record header which we
+             haven't done separately, hence offsets
+             below are 8 higher than in shapefile specification (table 6)
+             */
             var recordInfoLength = 8 + 44 + 4 * numParts;
 
-            // amount that file length is increased by
+            /*
+             amount that file length is increased by
+             */
             byteLengthOfRecordInclHeader = recordInfoLength + 16 * numPointsOverall;
 
-            // value to use in shp record header and in shx record
+            /*
+             value to use in shp record header and in shx record
+             */
             var byteLengthOfRecordContent = byteLengthOfRecordInclHeader - 8;
 
-            // buffer to contain the record header plus the descriptive parts of the record content,
-            // effectively these are header too i reckon
+            /*
+              buffer to contain the record header plus the descriptive parts of the record content
+             */
             var shpRecordInfo = new ArrayBuffer(recordInfoLength);
             var shpRecordInfoView = new DataView(shpRecordInfo);
             shpRecordInfoView.setInt32(0, i);
+            /*
+             value is in 16 bit word
+             */
             shpRecordInfoView.setInt32(4, (byteLengthOfRecordContent / 2));//value is in 16 bit word
-            // that's the 8 bytes of record header done, now add the shapetype, box,
-            // numparts, and numpoints add 8 to all offsets given in shapefile doc to account
-            // for header all numbers in the record itself are little-endian
+            /*
+             that's the 8 bytes of record header done, now add the shapetype, box,
+             numparts, and numpoints add 8 to all offsets given in shapefile doc to account
+             for header all numbers in the record itself are little-endian
+             */
             shpRecordInfoView.setInt32(8, ShapeTypes[shapetype], true);
             shpRecordInfoView.setFloat64(12, featureMinX, true);
             shpRecordInfoView.setFloat64(20, featureMinY, true);
@@ -334,13 +393,17 @@ var Shapefile = (function() {
             shpRecordInfoView.setInt32(44, numParts, true);
             shpRecordInfoView.setInt32(48, numPointsOverall, true);
 
-            // now write in the indices of the part starts
+            /*
+             now write in the indices of the part starts
+             */
             for (partNum = 0; partNum < partsIndex.length; partNum++) {
               shpRecordInfoView.setInt32(52 + partNum * 4, partsIndex[partNum], true);
             }
 
-            //now featureRecordInfo and pointsArrayBuf together contain the complete feature
-            // now do the shx record
+            /*
+             featureRecordInfo and pointsArrayBuf together contain the complete feature
+             Create shx:
+             */
             var shxBuffer = new ArrayBuffer(8);
             var shxDataView = new DataView(shxBuffer);
             shxDataView.setInt32(0, byteFileLength / 2);
@@ -356,7 +419,9 @@ var Shapefile = (function() {
             if (featureMinY < extentMinY)
               extentMinY = featureMinY;
 
-            // finally augment the overall file length tracker
+            /*
+             finally augment the overall file length tracker
+             */
             byteFileLength += byteLengthOfRecordInclHeader;
           }
 
@@ -367,9 +432,9 @@ var Shapefile = (function() {
             message: 'unknown shape type specified',
           });
       }
-
-      // end of switch statement. build the rest of the file headers as we now know the file extent and length
-      // set extent in shp and shx headers, little endian
+      /*
+      Data is already in both Blob files just need to build headers (from the length and extent)
+       */
       shpHeaderView.setFloat64(36, extentMinX, true);
       shpHeaderView.setFloat64(44, extentMinY, true);
       shpHeaderView.setFloat64(52, extentMaxX, true);
@@ -379,13 +444,19 @@ var Shapefile = (function() {
       shxHeaderView.setFloat64(52, extentMaxX, true);
       shxHeaderView.setFloat64(60, extentMaxY, true);
 
-      // overall shp file length in 16 bit words at byte 24 of shp header
+      /*
+       overall shp file length in 16 bit words at byte 24 of shp header
+       */
       shpHeaderView.setInt32(24, byteFileLength / 2);
 
-      // overall shx file length in 16 bit words at byte 24 of shx header, easily worked out
+      /*
+      overall shx file length in 16 bit words at byte 24 of shx header, easily worked out
+       */
       shxHeaderView.setInt32(24, (50 + numRecords * 4));
 
-      // all done. make and return the final blob objects
+      /*
+      Create and return the final blob objects
+       */
       var shapeFileBlobObject = new Blob([shpHeaderView, shpContentBlobObject]);
       var shxFileBlobObject = new Blob([shxHeaderView, shxContentBlobObject]);
       return {
@@ -395,7 +466,10 @@ var Shapefile = (function() {
       };
     };
 
-    // DBF created by two separate functions for header and content. This function combines them
+    /*
+    DBF is created by two separate functions for header and content. This function combines them
+    and return Blob for ShapeMaker
+     */
     var _createDbf = function(attributeMap, graphics) {
       if (attributeMap.length === 0) {
         attributeMap.push({
@@ -413,10 +487,6 @@ var Shapefile = (function() {
     };
 
     var _createDbfHeader = function(attributeMap, numRecords) {
-      // DBF File format references: see
-      // (XBase) http://www.clicketyclick.dk/databases/xbase/format/dbf.html#DBF_STRUCT
-      // http://www.quantdec.com/SYSEN597/GTKAV/section4/chapter_15a.htm
-      // http://ulisse.elettra.trieste.it/services/doc/dbase/DBFstruct.htm
       /* attributes parameter will be in the format
        [
        {
@@ -428,32 +498,36 @@ var Shapefile = (function() {
        }
        ]
        */
-      var numFields = attributeMap.length; // GET NUMBER OF FIELDS FROM PARAMETER
+      var numFields = attributeMap.length;
       var fieldDescLength = 32 * numFields + 1;
 
-      // use convenience method to create compatible buffer format
       var dbfFieldDescBuf = new ArrayBuffer(fieldDescLength);
       var dbfFieldDescView = new DataView(dbfFieldDescBuf);
       var namesUsed = [];
-      var numBytesPerRecord = 1; // total is the length of all fields plus 1 for deletion flag
+      var numBytesPerRecord = 1;
       for (var i = 0; i < numFields; i++) {
-        // each field has 32 bytes in the header. These describe name, type, and length of the attribute
+        /*
+        each field has 32 bytes in the header. These describe name, type, and length of the attribute
+         */
         var name = attributeMap[i].name.slice(0, 10);
 
-        // need to check if the name has already been used and generate a altered one
-        // if so. not doing the check yet, better make sure we don't try duplicate names!
-        // NB older browsers don't have indexOf but given the other stuff we're doing with binary
-        // i think that's the least of their worries
+        /*
+        need to check if the name has already been used and generate a altered one
+        if so. not doing the check yet, better make sure we don't try duplicate names!
+        NB older browsers don't have indexOf but given the other stuff we're doing with binary
+        i think that's the least of their worries
+         */
         if (namesUsed.indexOf(name) === -1) {
           namesUsed.push(name);
         }
 
-        // write the name into bytes 0-9 of the field description
+        /*
+        write the name into bytes 0-9 of the field description
+         */
         for (var x = 0; x < name.length; x++) {
           dbfFieldDescView.setInt8(i * 32 + x, name.charCodeAt(x));
         }
 
-        // nb byte 10 is left at zero
         /* Now data type. Data types are
          C = Character. Max 254 characters.
          N = Number, but stored as ascii text. Max 18 characters.
@@ -472,49 +546,60 @@ var Shapefile = (function() {
         } else if (datatype === 'C') {
           fieldLength = attributeMap[i].length && attributeMap[i].length < 254 ? attributeMap[i].length : 254;
         }
-
-        //else {
-        //	datatype == "C";
-        //	fieldLength = 254;
-        //}
-        // write the type into byte 11
-        dbfFieldDescView.setInt8(i * 32 + 11, datatype.charCodeAt(0)); // FIELD TYPE
-        // write the length into byte 16
-        dbfFieldDescView.setInt8(i * 32 + 16, fieldLength); //FIELD LENGTH
+        /*
+        write the type into byte 11
+         */
+        dbfFieldDescView.setInt8(i * 32 + 11, datatype.charCodeAt(0));
+        /*
+        write the length into byte 16
+         */
+        dbfFieldDescView.setInt8(i * 32 + 16, fieldLength);
         if (datatype === 'N') {
           var fieldDecCount = attributeMap[i].scale || 0;
 
-          // write the decimal count into byte 17
-          dbfFieldDescView.setInt8(i * 32 + 17, fieldDecCount); // FIELD DECIMAL COUNT
+          /*
+          write the decimal count into byte 17
+           */
+          dbfFieldDescView.setInt8(i * 32 + 17, fieldDecCount);
         }
 
-        // modify what's recorded so the attribute map doesn't have more than 18 chars even if there are more
-        // than 18 present
+        /*
+        modify what's recorded so the attribute map doesn't have more than 18 chars
+        even if there are more than 18
+         */
         attributeMap[i].length = parseInt(fieldLength);
         numBytesPerRecord += parseInt(fieldLength);
       }
 
-      // last byte of the array is set to 0Dh (13, newline character) to mark end of overall header
+      /*
+      last byte of the array is set to 0Dh (13, newline character) to mark end of overall header
+       */
       dbfFieldDescView.setInt8(fieldDescLength - 1, 13);
 
-      // field map section is complete, now do the main header
+      /*
+      field map section is complete, now do the main header
+       */
       var dbfHeaderBuf = new ArrayBuffer(32);
       var dbfHeaderView = new DataView(dbfHeaderBuf);
-      dbfHeaderView.setUint8(0, 3); // File Signature: DBF - UNSIGNED
+      dbfHeaderView.setUint8(0, 3);
       var rightnow = new Date();
-      dbfHeaderView.setUint8(1, rightnow.getFullYear() - 1900); // UNSIGNED
-      dbfHeaderView.setUint8(2, rightnow.getMonth()); // UNSIGNED
-      dbfHeaderView.setUint8(3, rightnow.getDate()); // UNSIGNED
-      dbfHeaderView.setUint32(4, numRecords, true); // LITTLE ENDIAN, UNSIGNED
+      dbfHeaderView.setUint8(1, rightnow.getFullYear() - 1900);
+      dbfHeaderView.setUint8(2, rightnow.getMonth());
+      dbfHeaderView.setUint8(3, rightnow.getDate());
+      dbfHeaderView.setUint32(4, numRecords, true);
       var totalHeaderLength = fieldDescLength + 31 + 1;
 
-      // the 31 bytes of this section, plus the length of the fields description, plus 1 at the end
-      dbfHeaderView.setUint16(8, totalHeaderLength, true); // LITTLE ENDIAN , UNSIGNED
-      // the byte length of each record, which includes 1 initial byte as a deletion flag
-      dbfHeaderView.setUint16(10, numBytesPerRecord, true); // LITTLE ENDIAN, UNSIGNED
-      //dbfHeaderView.setUint8(29,03) // language driver, 03 = windows ansi
-      // except for 29, bytes 12 - 31 are reserved or for things we don't need in this implementation
-      // header section is complete, now build the overall header as a blob
+      /*
+      the 31 bytes of this section, plus the length of the fields description, plus 1 at the end
+       */
+      dbfHeaderView.setUint16(8, totalHeaderLength, true);
+      /*
+      the byte length of each record, which includes 1 initial byte as a deletion flag
+       */
+      dbfHeaderView.setUint16(10, numBytesPerRecord, true);
+      /*
+      header section is complete, now build and return the overall header as a blob
+       */
       var dbfHeaderBlob = new Blob([dbfHeaderView, dbfFieldDescView]);
       return {
         recordLength: numBytesPerRecord,
@@ -556,41 +641,47 @@ var Shapefile = (function() {
        * There are almost certainly more ways to break this than there are ways to make it work!
        */
 
-      // overall datalength is number of records * (length of record including 1 for deletion flag) +1 for EOF
+      /*
+      overall datalength is number of records * (length of record including 1 for deletion flag) +1 for EOF
+       */
       var numAsString;
       var writeByte;
       var dataLength = (dbfRecordLength) * graphics.length + 1;
 
-      //var dbfDataBuf = new ArrayBuffer(dataLength);
       var dbfDataBuf = new ArrayBuffer(dataLength);
       var dbfDataView = new DataView(dbfDataBuf);
       var currentOffset = 0;
       for (var rownum = 0; rownum < graphics.length; rownum++) {
         var rowData = graphics[rownum].attributes || {};
-
-        //console.log ("Writing DBF record for searchId "+rowData['SEARCHID'] +
-        //	" and type " + rowData['TYPE'] + "to row "+rownum);
-
-        dbfDataView.setUint8(currentOffset, 32); // Deletion flag: not deleted. 20h = 32, space
+        dbfDataView.setUint8(currentOffset, 32);
         currentOffset += 1;
         for (var attribNum = 0; attribNum < attributeMap.length; attribNum++) {
-          // loop once for each attribute
+          /*
+          loop once for each attribute
+           */
           var attribInfo = attributeMap[attribNum];
           var attName = attribInfo.name;
           var dataType = attribInfo.type || 'C';
-          var fieldLength = parseInt(attribInfo.length) || 0; // it isn't alterable for L or D type fields
+          var fieldLength = parseInt(attribInfo.length) || 0;
           var attValue = rowData[attName] || rownum.toString();
 
-          // use incrementing number if attribute is missing,
-          // this will come into play if there were no attributes
-          // in the original graphics, hence the attributeMap contains "ID_AUTO"
-          //var fieldLength;
+          /*
+          use incrementing number if attribute is missing,
+          this will come into play if there were no attributes
+          in the original graphics, hence the attributeMap contains "ID_AUTO"
+           */
           if (dataType === 'L') {
             fieldLength = 1;
             if (attValue) {
-              dbfDataView.setUint8(currentOffset, 84); // 84 is ASCII for T
+              /*
+               84 is ASCII for T
+                */
+              dbfDataView.setUint8(currentOffset, 84);
             } else {
-              dbfDataView.setUint8(currentOffset, 70); // 70 is ASCII for F
+              /*
+              70 is ASCII for F
+               */
+              dbfDataView.setUint8(currentOffset, 70);
             }
 
             currentOffset += 1;
@@ -598,7 +689,9 @@ var Shapefile = (function() {
             fieldLength = 8;
             numAsString = attValue.toString();
             if (numAsString.length !== fieldLength) {
-              // if the length isn't what it should be then ignore and write a blank string
+              /*
+              if the length isn't what it should be then ignore and write a blank string
+               */
               numAsString = ''.lpad(' ', 8);
             }
 
@@ -607,16 +700,18 @@ var Shapefile = (function() {
               currentOffset += 1;
             }
           } else if (dataType === 'N') {
-            // maximum length is 18. Numbers are stored as ascii text so convert to a string.
-            // fieldLength = attribinfo.length && attribinfo.length<19 ? attribinfo.length : 18;
+            /*
+            maximum length is 18. Numbers are stored as ascii text so convert to a string.
+             */
             numAsString = attValue.toString();
             if (fieldLength === 0) {
               continue;
             }
 
-            // bug fix: was calling lpad on != fieldLength i.e. for too-long strings too
             if (numAsString.length < fieldLength) {
-              // if the length is too short then pad to the left
+              /*
+              if the length is too short then pad to the left
+               */
               numAsString = numAsString.lpad(' ', fieldLength);
             } else if (numAsString.length > fieldLength) {
               numAsString = numAsString.substr(0, 18);
@@ -632,7 +727,6 @@ var Shapefile = (function() {
             }
 
             if (typeof (attValue) !== 'string') {
-              // just in case a rogue number has got in...
               attValue = attValue.toString();
             }
 
@@ -640,28 +734,30 @@ var Shapefile = (function() {
               attValue = attValue.rpad(' ', fieldLength);
             }
 
-            // doesn't matter if it's too long as we will only write fieldLength bytes
+            /*
+            doesn't matter if it's too long as we will only write fieldLength bytes
+             */
             for (writeByte = 0; writeByte < fieldLength; writeByte++) {
               dbfDataView.setUint8(currentOffset, attValue.charCodeAt(writeByte));
               currentOffset += 1;
             }
           }
         }
-
-        // row done, rinse and repeat
       }
 
-      // all rows written, write EOF
+      /*
+      all rows written, write EOF and return Blob
+       */
       dbfDataView.setUint8(dataLength - 1, 26);
-
-      //var dbfDataBlobObject = new WebKitBlobBuilder();
       return new Blob([dbfDataView]);
     };
 
     var _createAttributeMap = function(graphicsArray) {
-      // creates a summary of the attributes in the input graphics
-      // will be a union of all attributes present so it is sensible but not required that
-      // all input graphics have same attributes anyway
+      /*
+      creates a summary of the attributes in the input graphics
+       will be a union of all attributes present so it is sensible but not required that
+       all input graphics have same attributes anyway
+       */
       var allAttributes = {};
       for (var i = 0; i < graphicsArray.length; i++) {
         var graphic = graphicsArray[i];
@@ -670,7 +766,9 @@ var Shapefile = (function() {
             if (graphic.attributes.hasOwnProperty(attribute)) {
               var attvalue = graphic.attributes[attribute];
               if (allAttributes.hasOwnProperty(attribute)) {
-                // Call toString on all attributes to get the length in characters
+                /*
+                Call toString on all attributes to get the length in characters
+                 */
                 if (allAttributes[attribute].length < attvalue.toString().length) {
                   allAttributes[attribute].length = attvalue.toString().length;
                 }
@@ -678,13 +776,11 @@ var Shapefile = (function() {
                 switch (typeof (attvalue)) {
                   case 'number':
                     if (parseInt(attvalue) === attvalue) {
-                      // it's an int
                       allAttributes[attribute] = {
                         type: 'N',
                         length: attvalue.toString().length,
                       };
                     } else if (parseFloat(attvalue) === attvalue) {
-                      // it's a float
                       var scale = attvalue.toString().length -
                           (attvalue.toString().split('.')[0].length + 1);
                       allAttributes[attribute] = {
@@ -736,9 +832,11 @@ var Shapefile = (function() {
       return attributeMap;
     };
 
-    // DEFINE THE OBJECT THAT WILL REPRESENT THE PROTOTYPE
-    // all functions defined, now return as the prototype an object giving access to the ones we want
-    // to be public
+    /*
+    DEFINE THE OBJECT THAT WILL REPRESENT THE PROTOTYPE
+    all functions defined, now return as the prototype an object giving access to the ones we want
+    to be public
+     */
     return {
       constructor: ShapeMaker,
       getOpenLayers3Geometry: function() {
@@ -750,11 +848,14 @@ var Shapefile = (function() {
       },
     };
 
-    // execute the prototype definition immediately
   })();
 
-  // return the ShapeMaker object
+  /*
+  return the ShapeMaker object
+   */
   return ShapeMaker;
 
-  // execute the whole lot so that ShapeFile is available in the global space
+  /*
+  execute the whole lot so that ShapeFile is available in the global space
+   */
 })();
