@@ -1,4 +1,4 @@
-/*! openlayers2shp - v0.0.1 - 2016-01-13
+/*! openlayers2shp - v0.0.1 - 2016-01-14
 * Copyright (c) 2016; Licensed   */
 var ol2shp = {
   /**
@@ -16,11 +16,11 @@ var Shapefile = (function() {
 
   /**
    * Pad the left side of a string with a given character
+   * @namespace
    * @param {string} padString - Filling character
-   * @param {number} length - Final lenght of String
+   * @param {number} length - Final length of string
    * @function lpad
-   * @memberof Shapefile
-   *  @return {string}
+   * @return {string}
    */
   String.prototype.lpad = function(padString, length) {
     var _this = this;
@@ -31,10 +31,10 @@ var Shapefile = (function() {
 
   /**
    * Pad the right side of a string with a given character
+   * @namespace
    * @param {string} padString - Filling character
-   * @param {number} length - Final lenght of String
+   * @param {number} length - Final length of string
    * @function rpad
-   * @memberof Shapefile
    * @return {string}
    */
   String.prototype.rpad = function(padString, length) {
@@ -45,7 +45,10 @@ var Shapefile = (function() {
   };
 
   /**
-   * Pad the right side of a string with a given character
+   * Prototypes of that function generates shapefile's
+   * @memberof Shapefile
+   * @function ShapeMaker
+   * @private
    */
   var ShapeMaker = function() {
     this._pointgraphics = [];
@@ -54,7 +57,12 @@ var Shapefile = (function() {
   };
 
   ShapeMaker.prototype = (function() {
-
+    /**
+     * Array containing possible shapefile types
+     * @memberof Shapefile
+     * @type {{POINT: number, POLYLINE: number, POLYGON: number}}
+     * @private
+     */
     var ShapeTypes = {
       POINT: 1,
       POLYLINE: 3,
@@ -62,9 +70,11 @@ var Shapefile = (function() {
     };
 
     /**
-     * Push OpanLayers3 data to graphics prepared for shapefile format
+     * Push OpenLayers3 data to graphics prepared for shapefile format
      * (Point, LineString and Polygon)
+     * @memberof Shapefile
      * @param {ol.source.Vector} openlayers3data - OpenLayers 3 data to prepare
+     * @public
      */
     function getOpenLayers3Geometry(openlayers3data) {
       var features = openlayers3data.getFeatures();
@@ -92,6 +102,13 @@ var Shapefile = (function() {
       }
     }
 
+    /**
+     * Main function to generate shapefile, after adding graphics
+     * @memberof Shapefile
+     * @param shapetype
+     * @returns {{successful: boolean, message: string}|{successful: boolean,
+     * shapefile: {shp: resultObject, shx: resultObject, dbf: resultObject}}
+     */
     var getShapefile = function(shapetype) {
       // Main function to generate shapefile, after adding graphics
       // Returns an object with three
