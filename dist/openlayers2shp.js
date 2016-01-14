@@ -1,4 +1,4 @@
-/*! openlayers2shp - v0.0.1 - 2016-01-14
+/*! openlayers2shp - v1.0.0 - 2016-01-14
 * Copyright (c) 2016; Licensed   */
 var ol2shp = {
   /**

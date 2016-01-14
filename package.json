@@ -1,13 +1,13 @@
 {
   "name": "openlayers2shp",
-  "version": "0.0.1",
-  "description": "OpenLayers 3 shapefile improting/editing/exporting tools",
+  "version": "1.0.0",
+  "description": "OpenLayers 3 shapefile exporting tools",
   "scripts": {
     "test": "grunt nodeunit"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GeoSmartCity-CIP/gsc-client.git"
+    "url": "git+https://github.com/lol2x/OpenLayers3-to-shapefile"
   },
   "keywords": [
     "map",
@@ -15,7 +15,7 @@
     "shapefile"
   ],
   "author": "Adam Kaput - GEOBID",
-  "license": "MIT",
+  "license": "GPLv3",
   "devDependencies": {
     "grunt": "~0.4.5",
     "grunt-contrib-concat": "^0.5.1",
