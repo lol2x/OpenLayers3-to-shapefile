@@ -1,4 +1,4 @@
-/*! openlayers2shp - v1.0.0 - 2016-01-14
+/*! openlayers2shp - v1.0.0 - 2016-01-15
 * Copyright (c) 2016; Licensed   */
 var ol2shp = {
   /**
@@ -119,13 +119,15 @@ var Shapefile = (function() {
           this._polygongraphics.push(OpenLayers3Geometry);
         } else if (feature.getGeometry().getType() === 'MultiPoint') {
           OpenLayers3Geometry.geometry.type = 'POINT';
-          var point = feature.getGeometry().getCoordinates;
+          var point = feature.getGeometry().getCoordinates();
           for (var j = 0; j < point.length; j++) {
             OpenLayers3Geometry.geometry.x = point[j][0];
             OpenLayers3Geometry.geometry.y = point[j][1];
-          }
-
-          this._pointgraphics.push(OpenLayers3Geometry);
+            console.log('punkt j: ' + point[j]);
+            console.log('x: ' + point[j][0] + 'y: ' + point[j][1]);
+            console.log(OpenLayers3Geometry);
+            this._pointgraphics.push(OpenLayers3Geometry);
+          }//TODO do poprawki
         } else if (feature.getGeometry().getType() === 'MultiPolygon') {
           OpenLayers3Geometry.geometry.type = 'POLYGON';
           var rings = feature.getGeometry().getCoordinates(false);

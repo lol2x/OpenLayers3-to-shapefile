@@ -1,4 +1,6 @@
 # OpenLayers2shp
+# NOT READY FOR ACTUALL USE
+
 Simple library which will allow you to generate shapefiles (**.shp**, **.shx**, **.dbf**) using *OpenLayers 3 Geometry - ol.source.Vector*
 Library based on great work of @harry-gibson modified by [Adam Kaput](https://github.com/lol2x)
 # Usage:
