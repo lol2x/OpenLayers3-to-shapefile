@@ -11,6 +11,7 @@ GNU / GPL v3
  * var pointfile = shapefile.getShapefile('POINT');  // output shapefile will use point graphics only
  * var linefile = shapefile.getShapefile('POLYLINE'); // output shapefile will use the polyline graphics only
  * var polygonfile = shapefile.getShapefile('POLYGON'); //output shapefile will use the polygons graphics only
+ * var multipointfile = shapefile.getShapefile('MULTIPOINT');
  * //Return structure:
  *  pointfile = {
  *  	successful : true | false,
@@ -63,19 +64,21 @@ var Shapefile = (function() {
     this._pointgraphics = [];
     this._polylinegraphics = [];
     this._polygongraphics = [];
+    this._multipointgraphics = [];
   };
 
   ShapeMaker.prototype = (function() {
     /**
      * Array containing possible shapefile types
      * @memberof Shapefile
-     * @type {{POINT: number, POLYLINE: number, POLYGON: number}}
+     * @type {{POINT: number, POLYLINE: number, POLYGON: number, MULTIPOINT: number}}
      * @private
      */
     var ShapeTypes = {
       POINT: 1,
       POLYLINE: 3,
       POLYGON: 5,
+      MULTIPOINT: 8,
     };
 
     /**
@@ -108,7 +111,7 @@ var Shapefile = (function() {
           OpenLayers3Geometry.geometry.rings = feature.getGeometry().getCoordinates(false);
           this._polygongraphics.push(OpenLayers3Geometry);
         } else if (feature.getGeometry().getType() === 'MultiPoint') {
-          OpenLayers3Geometry.geometry.type = 'POINT';
+          OpenLayers3Geometry.geometry.type = 'MULTIPOINT';
           var point = feature.getGeometry().getCoordinates();
           for (var j = 0; j < point.length; j++) {
             OpenLayers3Geometry.geometry.x = point[j][0];
@@ -117,6 +120,10 @@ var Shapefile = (function() {
             console.log('x: ' + point[j][0] + 'y: ' + point[j][1]);
             console.log(OpenLayers3Geometry);
             this._pointgraphics.push(OpenLayers3Geometry);
+
+
+
+
           }//TODO do poprawki
         } else if (feature.getGeometry().getType() === 'MultiPolygon') {
           OpenLayers3Geometry.geometry.type = 'POLYGON';
