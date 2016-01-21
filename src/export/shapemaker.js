@@ -147,7 +147,7 @@ var Shapefile = (function() {
      */
     var getShapefile = function(shapetype) {
       if (typeof (shapetype) === 'undefined' &&
-          !(shapetype === 'POINT' || shapetype === 'POLYLINE' || shapetype === 'POLYGON')) {
+          !(shapetype === 'POINT' || shapetype === 'POLYLINE' || shapetype === 'POLYGON' || shapetype === 'MULTIPOINT')) {
         return {
           successful: false,
           message: 'Unknown or unspecified shapefile type requested',
@@ -161,6 +161,8 @@ var Shapefile = (function() {
         arrayToUse = this._polylinegraphics;
       } else if (shapetype === 'POLYGON') {
         arrayToUse = this._polygongraphics;
+      } else if (shapetype === 'MULTIPOINT') {
+        arrayToUse = this._multipointgraphics;
       } else {
         return {
           successful: false,
@@ -297,6 +299,9 @@ var Shapefile = (function() {
             shpContentBlobObject = new Blob([shpContentBlobObject, recordDataView]);
             shxContentBlobObject = new Blob([shxContentBlobObject, shxRecordView]);
           }
+
+          break;
+        case 'MULTIPOINT':
 
           break;
         case 'POLYLINE':
