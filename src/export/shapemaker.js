@@ -112,26 +112,14 @@ var Shapefile = (function() {
           this._polygongraphics.push(OpenLayers3Geometry);
         } else if (feature.getGeometry().getType() === 'MultiPoint') {
           OpenLayers3Geometry.geometry.type = 'MULTIPOINT';
-          var point = feature.getGeometry().getCoordinates();
-          for (var j = 0; j < point.length; j++) {
-            OpenLayers3Geometry.geometry.x = point[j][0];
-            OpenLayers3Geometry.geometry.y = point[j][1];
-            console.log('punkt j: ' + point[j]);
-            console.log('x: ' + point[j][0] + 'y: ' + point[j][1]);
-            console.log(OpenLayers3Geometry);
-            this._pointgraphics.push(OpenLayers3Geometry);
-
-
-
-
-          }//TODO do poprawki
+          OpenLayers3Geometry.geometry.points = feature.getGeometry().getCoordinates();
+          this._multipointgraphics.push(OpenLayers3Geometry);
         } else if (feature.getGeometry().getType() === 'MultiPolygon') {
           OpenLayers3Geometry.geometry.type = 'POLYGON';
           var rings = feature.getGeometry().getCoordinates(false);
           for (var j = 0; j < rings.length; j++) {
             OpenLayers3Geometry.geometry.rings = rings[j];
           }
-
           this._polygongraphics.push(OpenLayers3Geometry);
         }
       }
